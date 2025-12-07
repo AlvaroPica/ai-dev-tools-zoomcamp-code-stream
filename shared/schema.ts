@@ -1,22 +1,45 @@
 import { z } from "zod";
 
+export const participantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  color: z.string(),
+  cursorPosition: z.object({
+    line: z.number(),
+    column: z.number(),
+  }).optional(),
+});
+
+export type Participant = z.infer<typeof participantSchema>;
+
 export const sessionSchema = z.object({
   id: z.string(),
   code: z.string(),
   language: z.enum(["javascript", "python"]),
   createdAt: z.string(),
-  participants: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    color: z.string(),
-    cursorPosition: z.object({
-      line: z.number(),
-      column: z.number(),
-    }).optional(),
-  })),
+  participants: z.array(participantSchema),
 });
 
 export type Session = z.infer<typeof sessionSchema>;
+
+export const insertSessionSchema = sessionSchema.omit({ id: true, createdAt: true, participants: true });
+export type InsertSession = z.infer<typeof insertSessionSchema>;
+
+export const updateCodeSchema = z.object({
+  code: z.string().min(0),
+});
+export type UpdateCode = z.infer<typeof updateCodeSchema>;
+
+export const updateLanguageSchema = z.object({
+  language: z.enum(["javascript", "python"]),
+});
+export type UpdateLanguage = z.infer<typeof updateLanguageSchema>;
+
+export const executeCodeSchema = z.object({
+  code: z.string(),
+  language: z.enum(["javascript", "python"]),
+});
+export type ExecuteCode = z.infer<typeof executeCodeSchema>;
 
 export const createSessionResponseSchema = z.object({
   id: z.string(),
