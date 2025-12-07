@@ -1,0 +1,362 @@
+openapi: 3.0.3
+info:
+  title: CodeCollab API
+  description: Real-time collaborative coding interview platform API
+  version: 1.0.0
+  contact:
+    name: CodeCollab Team
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+
+paths:
+  /api/session/create:
+    get:
+      summary: Create a new coding session
+      description: Creates a new collaborative coding session and returns session details
+      operationId: createSession
+      tags:
+        - Sessions
+      responses:
+        '200':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSessionResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/session/{id}:
+    get:
+      summary: Get session details
+      description: Retrieves details of an existing coding session
+      operationId: getSession
+      tags:
+        - Sessions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/session/{id}/execute:
+    post:
+      summary: Execute code in session
+      description: Executes the current code in the session and returns results
+      operationId: executeCode
+      tags:
+        - Sessions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteCodeRequest'
+      responses:
+        '200':
+          description: Code executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResult'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    CreateSessionResponse:
+      type: object
+      required:
+        - id
+        - code
+        - language
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique session identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        code:
+          type: string
+          description: Initial code content
+          example: "// Start coding here\n"
+        language:
+          type: string
+          enum: [javascript, python]
+          description: Programming language for the session
+          example: "javascript"
+        createdAt:
+          type: string
+          format: date-time
+          description: Session creation timestamp
+          example: "2024-01-15T10:30:00Z"
+
+    Session:
+      type: object
+      required:
+        - id
+        - code
+        - language
+        - createdAt
+        - participants
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        language:
+          type: string
+          enum: [javascript, python]
+        createdAt:
+          type: string
+          format: date-time
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Participant'
+
+    Participant:
+      type: object
+      required:
+        - id
+        - name
+        - color
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "User 1"
+        color:
+          type: string
+          description: Hex color for participant cursor
+          example: "#3B82F6"
+        cursorPosition:
+          $ref: '#/components/schemas/CursorPosition'
+
+    CursorPosition:
+      type: object
+      properties:
+        line:
+          type: integer
+          minimum: 1
+        column:
+          type: integer
+          minimum: 1
+
+    ExecuteCodeRequest:
+      type: object
+      required:
+        - code
+        - language
+      properties:
+        code:
+          type: string
+          description: Code to execute
+        language:
+          type: string
+          enum: [javascript, python]
+
+    ExecutionResult:
+      type: object
+      required:
+        - output
+        - executionTime
+        - language
+      properties:
+        output:
+          type: string
+          description: Execution output/stdout
+        error:
+          type: string
+          description: Error message if execution failed
+        executionTime:
+          type: number
+          description: Execution time in milliseconds
+        language:
+          type: string
+          enum: [javascript, python]
+
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+
+    # WebSocket Message Types
+    CodeUpdateMessage:
+      type: object
+      required:
+        - type
+        - sessionId
+        - code
+        - userId
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [code_update]
+        sessionId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        userId:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+
+    CursorUpdateMessage:
+      type: object
+      required:
+        - type
+        - sessionId
+        - userId
+        - userName
+        - color
+        - position
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [cursor_update]
+        sessionId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        userName:
+          type: string
+        color:
+          type: string
+        position:
+          $ref: '#/components/schemas/CursorPosition'
+        timestamp:
+          type: string
+          format: date-time
+
+    ParticipantJoinMessage:
+      type: object
+      required:
+        - type
+        - sessionId
+        - participant
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [participant_join]
+        sessionId:
+          type: string
+          format: uuid
+        participant:
+          $ref: '#/components/schemas/Participant'
+        timestamp:
+          type: string
+          format: date-time
+
+    ParticipantLeaveMessage:
+      type: object
+      required:
+        - type
+        - sessionId
+        - participantId
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [participant_leave]
+        sessionId:
+          type: string
+          format: uuid
+        participantId:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+
+    ExecutionResultMessage:
+      type: object
+      required:
+        - type
+        - sessionId
+        - output
+        - executionTime
+        - timestamp
+      properties:
+        type:
+          type: string
+          enum: [execution_result]
+        sessionId:
+          type: string
+          format: uuid
+        output:
+          type: string
+        error:
+          type: string
+        executionTime:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+
+# WebSocket endpoint documentation (not part of OpenAPI spec but documented here)
+# ws://localhost:5000/api/session/{id}/ws
+# 
+# Connection: Opens a WebSocket connection for real-time collaboration
+# 
+# Inbound Messages (Client -> Server):
+#   - CodeUpdateMessage: Sent when user types in editor
+#   - CursorUpdateMessage: Sent when user moves cursor
+#
+# Outbound Messages (Server -> Client):
+#   - CodeUpdateMessage: Broadcast code changes from other users
+#   - CursorUpdateMessage: Broadcast cursor movements from other users
+#   - ParticipantJoinMessage: Sent when a new user joins
+#   - ParticipantLeaveMessage: Sent when a user leaves
+#   - ExecutionResultMessage: Sent after code execution completes
