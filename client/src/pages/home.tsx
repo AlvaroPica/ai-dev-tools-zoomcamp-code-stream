@@ -4,7 +4,7 @@ import { Code2, Users, Zap, Play, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { mockApi } from "@/api/mockClient";
+import { api } from "@/api/apiClient";
 
 const features = [
   {
@@ -34,7 +34,7 @@ export default function Home() {
   const handleCreateSession = async () => {
     setIsCreating(true);
     try {
-      const session = await mockApi.createSession();
+      const session = await api.createSession();
       setLocation(`/session/${session.id}`);
     } catch (error) {
       console.error("Failed to create session:", error);

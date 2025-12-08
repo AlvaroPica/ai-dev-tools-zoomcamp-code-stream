@@ -9,7 +9,7 @@ import { SessionHeader } from "@/components/SessionHeader";
 import { CodeEditor } from "@/components/CodeEditor";
 import { OutputPanel } from "@/components/OutputPanel";
 import { useSessionStore } from "@/store/sessionStore";
-import { mockApi } from "@/api/mockClient";
+import { api } from "@/api/apiClient";
 import { createSocketClient, MockWebSocketClient } from "@/ws/socketClient";
 import type { ExecutionResult } from "@shared/schema";
 import { Loader2 } from "lucide-react";
@@ -42,14 +42,20 @@ export default function Session() {
       return;
     }
 
+    let currentUserId = "";
+
     const initSession = async () => {
       setIsLoading(true);
       try {
-        const session = await mockApi.getSession(id);
+        const session = await api.getSession(id);
         if (session) {
           setSessionId(session.id);
           setCode(session.code);
           setLanguage(session.language);
+        } else {
+          console.error("Session not found");
+          setLocation("/");
+          return;
         }
       } catch (error) {
         console.error("Failed to load session:", error);
@@ -62,6 +68,7 @@ export default function Session() {
       setConnectionStatus("connecting");
       const socket = createSocketClient(id, "User 1");
       socketRef.current = socket;
+      currentUserId = socket.getUserId();
 
       socket.onConnect(() => {
         setConnectionStatus("connected");
@@ -83,6 +90,9 @@ export default function Session() {
             updateParticipantCursor(message.userId, message.position);
             break;
           case "code_update":
+            if (message.userId !== currentUserId) {
+              setCode(message.code);
+            }
             break;
           case "execution_result":
             setIsExecuting(false);
@@ -117,7 +127,9 @@ export default function Session() {
       if (socketRef.current?.isConnected()) {
         socketRef.current.sendCodeUpdate(newCode);
       }
-      mockApi.updateSessionCode(id!, newCode);
+      api.updateSessionCode(id!, newCode).catch((error) => {
+        console.error("Failed to sync code:", error);
+      });
     },
     [id]
   );
@@ -132,7 +144,7 @@ export default function Session() {
     async (newLanguage: "javascript" | "python") => {
       if (!id) return;
       try {
-        const result = await mockApi.updateSessionLanguage(id, newLanguage);
+        const result = await api.updateSessionLanguage(id, newLanguage);
         setCode(result.code);
       } catch (error) {
         console.error("Failed to update language:", error);

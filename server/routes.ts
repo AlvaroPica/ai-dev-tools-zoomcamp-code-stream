@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { updateCodeSchema, updateLanguageSchema, executeCodeSchema } from "@shared/schema";
+import { ZodError } from "zod";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -40,20 +42,19 @@ export async function registerRoutes(
   app.patch("/api/session/:id/code", async (req, res) => {
     try {
       const { id } = req.params;
-      const { code } = req.body;
+      const validatedBody = updateCodeSchema.parse(req.body);
       
-      if (typeof code !== "string") {
-        return res.status(400).json({ message: "Code must be a string" });
-      }
-      
-      const session = await storage.updateSessionCode(id, code);
+      const session = await storage.updateSessionCode(id, validatedBody.code);
       
       if (!session) {
         return res.status(404).json({ message: "Session not found" });
       }
       
-      res.json({ success: true });
+      res.json({ success: true, code: session.code });
     } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid request body", errors: error.errors });
+      }
       console.error("Failed to update code:", error);
       res.status(500).json({ message: "Failed to update code" });
     }
@@ -62,13 +63,9 @@ export async function registerRoutes(
   app.patch("/api/session/:id/language", async (req, res) => {
     try {
       const { id } = req.params;
-      const { language } = req.body;
+      const validatedBody = updateLanguageSchema.parse(req.body);
       
-      if (language !== "javascript" && language !== "python") {
-        return res.status(400).json({ message: "Language must be 'javascript' or 'python'" });
-      }
-      
-      const session = await storage.updateSessionLanguage(id, language);
+      const session = await storage.updateSessionLanguage(id, validatedBody.language);
       
       if (!session) {
         return res.status(404).json({ message: "Session not found" });
@@ -76,6 +73,9 @@ export async function registerRoutes(
       
       res.json({ code: session.code });
     } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid request body", errors: error.errors });
+      }
       console.error("Failed to update language:", error);
       res.status(500).json({ message: "Failed to update language" });
     }
@@ -84,15 +84,7 @@ export async function registerRoutes(
   app.post("/api/session/:id/execute", async (req, res) => {
     try {
       const { id } = req.params;
-      const { code, language } = req.body;
-      
-      if (typeof code !== "string") {
-        return res.status(400).json({ message: "Code must be a string" });
-      }
-      
-      if (language !== "javascript" && language !== "python") {
-        return res.status(400).json({ message: "Language must be 'javascript' or 'python'" });
-      }
+      const validatedBody = executeCodeSchema.parse(req.body);
       
       const session = await storage.getSession(id);
       
@@ -103,9 +95,12 @@ export async function registerRoutes(
       res.json({
         output: "Code execution handled client-side",
         executionTime: 0,
-        language,
+        language: validatedBody.language,
       });
     } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid request body", errors: error.errors });
+      }
       console.error("Failed to execute code:", error);
       res.status(500).json({ message: "Failed to execute code" });
     }
