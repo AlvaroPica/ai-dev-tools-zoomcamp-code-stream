@@ -18,11 +18,15 @@ A real-time collaborative coding interview platform built with React + Vite, fea
 - **Styling**: Tailwind CSS, shadcn/ui components
 - **Routing**: Wouter
 - **Mock Backend**: In-memory storage with simulated WebSocket connections
+- **Testing**: Vitest, React Testing Library
 
 ## Project Structure
 
 ```
 ├── client/
+│   ├── Dockerfile          # Docker configuration (Dev, Test, Prod)
+│   ├── nginx.conf          # Nginx configuration for Docker
+│   ├── test/               # Frontend tests
 │   └── src/
 │       ├── api/            # Mock API client
 │       │   └── mockClient.ts
@@ -45,11 +49,48 @@ A real-time collaborative coding interview platform built with React + Vite, fea
 └── openapi.yaml            # OpenAPI 3.0 specification
 ```
 
-## Running on Replit
+## Docker Support (Frontend)
 
-1. Click the **Run** button to start the application
-2. The app will be available at the provided URL
-3. Click "Create New Session" to start a coding session
+The `client/Dockerfile` supports multiple stages for Development, Testing, and Production.
+
+### 1. Production Preview
+Build and run the optimized production build (Nginx):
+
+```bash
+# Build the production image (default target)
+docker build -f client/Dockerfile -t codecollab-frontend .
+
+# Run the container (access at http://localhost:5173)
+docker run -p 5173:80 codecollab-frontend
+```
+
+### 2. Local Development
+Run the development server with live reloading using Docker volumes:
+
+```bash
+# Build the dev image
+docker build -f client/Dockerfile --target dev -t codecollab-frontend-dev .
+
+# Run with volume mapping (PowerShell)
+# Note: We add -v /app/node_modules to use the container's installed dependencies
+# instead of the host's (which might be missing or incompatible)
+docker run -p 5173:5173 -v ${PWD}:/app -v /app/node_modules codecollab-frontend-dev
+
+# Run with volume mapping (Bash)
+docker run -p 5173:5173 -v $(pwd):/app -v /app/node_modules codecollab-frontend-dev
+```
+Access at http://localhost:5173
+
+### 3. Running Tests
+Run the test suite inside the container:
+
+```bash
+# Build the test image
+docker build -f client/Dockerfile --target test -t codecollab-frontend-test .
+
+# Run tests
+docker run codecollab-frontend-test
+```
 
 ## API Specification
 
@@ -60,15 +101,7 @@ See `openapi.yaml` for the complete API specification, including:
 - `POST /api/session/{id}/execute` - Execute code
 - `WebSocket /api/session/{id}/ws` - Real-time collaboration
 
-### WebSocket Message Types
-
-- `code_update` - Code changes from participants
-- `cursor_update` - Cursor position updates
-- `participant_join` - New participant joined
-- `participant_leave` - Participant left
-- `execution_result` - Code execution results
-
-## Development
+## Development (Local without Docker)
 
 ```bash
 # Install dependencies
@@ -76,13 +109,7 @@ npm install
 
 # Start development server
 npm run dev
+
+# Run tests
+npm run test
 ```
-
-## Future Integration
-
-This frontend is designed to connect to a FastAPI backend. Replace the mock implementations in:
-
-- `client/src/api/mockClient.ts` with real API calls
-- `client/src/ws/socketClient.ts` with a real WebSocket connection
-
-The OpenAPI specification in `openapi.yaml` documents the expected API contract.
